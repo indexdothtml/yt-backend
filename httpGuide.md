@@ -25,5 +25,6 @@ But following are some common used status codes.
 - 401 - Unauthorized
 - 402 - Payment Required
 - 404 - Resource Not Found
+- 409 - Conflict (If resource already exist and conflict with request.)
 - 500 - Internal Server Error
 - 504 - Gateway Time Out

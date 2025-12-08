@@ -14,25 +14,27 @@ async function uploadFile(localFilePath) {
     return {
       success: true,
       message: "",
-      data: response.url,
+      data: response,
+      error: null,
     };
   } catch (error) {
+    return {
+      success: false,
+      message: "Failed to upload file to cloud service.",
+      data: null,
+      error: error.message,
+    };
+  } finally {
     try {
       fs.unlinkSync(localFilePath);
-      return {
-        success: true,
-        message: "Failed to upload file to cloud service.",
-        data: null,
-      };
     } catch (error) {
       return {
         success: false,
-        message: "Deleting localfile opeartion failed.",
+        message: "Failed to remove image file from local.",
         data: null,
+        error: error.message,
       };
     }
-  } finally {
-    fs.unlinkSync(localFilePath);
   }
 }
 
