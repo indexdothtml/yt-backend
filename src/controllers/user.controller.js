@@ -3,6 +3,7 @@ import APIError from "../utils/apiErrorHandler.js";
 import APIResponse from "../utils/apiResponseHandler.js";
 import { User } from "../models/user.model.js";
 import { uploadFile } from "../utils/fileUploadHandler.js";
+import { deleteLocalFile } from "../utils/deleteLocalFileHandler.js";
 
 // User registeration controller
 const registerUser = asyncHandler(async (req, res) => {
@@ -26,6 +27,10 @@ const registerUser = asyncHandler(async (req, res) => {
   // Collect data
   const { username, email, fullname, password } = req.body;
 
+  // Fetch uploaded local file path if available.
+  const avatarLocalPath = req.files?.avatar?.[0].path;
+  const coverImageLocalPath = req.files?.coverImage?.[0].path;
+
   // Validatation
   // if (!username || username.toString().trim().toLowerCase() === "") {
   //   return res
@@ -39,6 +44,10 @@ const registerUser = asyncHandler(async (req, res) => {
       (field) => !field || field.toString().trim().toLowerCase() === ""
     )
   ) {
+    deleteLocalFile({
+      avatarImageLocalPath: avatarLocalPath,
+      coverImageLocalPath: coverImageLocalPath,
+    });
     return res
       .status(400)
       .json(new APIError("REQUIRED INPUT", "All fields are required.", 400));
@@ -48,6 +57,10 @@ const registerUser = asyncHandler(async (req, res) => {
   const emailRegix = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/g;
 
   if (!emailRegix.test(email)) {
+    deleteLocalFile({
+      avatarImageLocalPath: avatarLocalPath,
+      coverImageLocalPath: coverImageLocalPath,
+    });
     return res
       .status(400)
       .json(
@@ -64,6 +77,10 @@ const registerUser = asyncHandler(async (req, res) => {
     /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/g;
 
   if (!passwordRegix.test(password)) {
+    deleteLocalFile({
+      avatarImageLocalPath: avatarLocalPath,
+      coverImageLocalPath: coverImageLocalPath,
+    });
     return res
       .status(400)
       .json(
@@ -77,6 +94,10 @@ const registerUser = asyncHandler(async (req, res) => {
   }).exec();
 
   if (userExist) {
+    deleteLocalFile({
+      avatarImageLocalPath: avatarLocalPath,
+      coverImageLocalPath: coverImageLocalPath,
+    });
     return res
       .status(409)
       .json(
@@ -88,12 +109,11 @@ const registerUser = asyncHandler(async (req, res) => {
       );
   }
 
-  // Fetch uploaded local file path if available.
-  const avatarLocalPath = req.files?.avatar?.[0].path;
-  const coverImageLocalPath = req.files?.coverImage?.[0].path;
-
   // Check if avatar image file path available because it is required, if not available then return error response.
   if (!avatarLocalPath) {
+    deleteLocalFile({
+      coverImageLocalPath: coverImageLocalPath,
+    });
     return res
       .status(400)
       .json(new APIError("INVALID INPUT", "Avatar Image is required.", 400));
