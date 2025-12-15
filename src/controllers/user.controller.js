@@ -4,6 +4,7 @@ import APIResponse from "../utils/apiResponseHandler.js";
 import { User } from "../models/user.model.js";
 import { uploadFile } from "../utils/fileUploadHandler.js";
 import { deleteLocalFile } from "../utils/deleteLocalFileHandler.js";
+import { emailRegix, passwordRegix } from "../constants.js";
 
 // User registeration controller
 const registerUser = asyncHandler(async (req, res) => {
@@ -41,7 +42,7 @@ const registerUser = asyncHandler(async (req, res) => {
   // Validate - all fields are filled.
   if (
     [username, email, fullname, password].some(
-      (field) => !field || field.toString().trim().toLowerCase() === ""
+      (field) => !field || field.toString().trim() === ""
     )
   ) {
     deleteLocalFile({
@@ -54,8 +55,6 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   // Validate - email rule.
-  const emailRegix = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/g;
-
   if (!emailRegix.test(email)) {
     deleteLocalFile({
       avatarImageLocalPath: avatarLocalPath,
@@ -73,9 +72,6 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   // Validate - password rule.
-  const passwordRegix =
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/g;
-
   if (!passwordRegix.test(password)) {
     deleteLocalFile({
       avatarImageLocalPath: avatarLocalPath,
@@ -203,4 +199,133 @@ const registerUser = asyncHandler(async (req, res) => {
     .json(new APIResponse("NEW USER CREATED", filteredNewUserData, 201));
 });
 
-export { registerUser };
+// User login controller
+const loginUser = asyncHandler(async (req, res) => {
+  // Gather data required for login the user from req. ex - username and password.
+  // Validate data.
+  // Check username or email in DB.
+  // Check Password.
+  // Generate refresh token and access token.
+  // Store refresh token in DB.
+  // Create response object.
+  // Send refresh token and access token to user and store it in users sessions (not sure).
+  // Send response to user.
+
+  // Gather input
+  const { username, email, password } = req.body;
+
+  // Validate required fields are filled.
+  if (!(username || email) || !password) {
+    return res
+      .status(400)
+      .json(
+        new APIError(
+          "INVALID INPUT",
+          "Username or Email and Password are required to login",
+          400
+        )
+      );
+  }
+
+  // Validate email rule if email is present.
+  if (email && !emailRegix.test(email)) {
+    return res
+      .status(400)
+      .json(
+        new APIError("INVALID EMAIL", "Please enter valid email address.", 400)
+      );
+  }
+
+  // Query DB to check available user with username or email.
+  const userDocument = await User.findOne({
+    $or: [{ username }, { email }],
+  }).exec();
+
+  if (!userDocument) {
+    return res
+      .status(404)
+      .json(
+        new APIError("NOT FOUND", "Requested user document not found!", 404)
+      );
+  }
+
+  // Verify password.
+  const isPasswordValid = await userDocument.isPasswordCorrect(password);
+
+  if (!isPasswordValid) {
+    return res
+      .status(401)
+      .json(new APIError("UNAUTHORIZED", "Incorrect password.", 401));
+  }
+
+  // Create refresh token and access token.
+  const accessToken = userDocument.generateAccessToken();
+  const refreshToken = userDocument.generateRefreshToken();
+
+  // Update refreshToken in DB and return valid response document.
+  const updatedUserDocument = await User.findByIdAndUpdate(
+    userDocument._id,
+    {
+      $set: { refreshToken },
+    },
+    {
+      new: true,
+      select: "-password -refreshToken",
+      lean: true,
+    }
+  ).exec();
+
+  // Create cookie options
+  const cookieOptions = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  // Send cookies and response to client.
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", refreshToken, cookieOptions)
+    .json(
+      new APIResponse(
+        "OK",
+        { ...updatedUserDocument, accessToken, refreshToken },
+        200
+      )
+    );
+});
+
+// User logout controller
+const logoutUser = asyncHandler(async (req, res) => {
+  // Get Id from user object passed by auth middleware.
+  const id = req?.user?._id;
+
+  if (!id) {
+    return res
+      .status(500)
+      .json(new APIError("UNEXPECTED ERROR", "User id did not found.", 500));
+  }
+
+  // Update document for user in DB. Clear refreshToken.
+  await User.findByIdAndUpdate(
+    id,
+    { $set: { refreshToken: "" } },
+    {
+      new: true,
+    }
+  ).exec();
+
+  // Create cookie options
+  const cookieOptions = {
+    httpOnly: true,
+    secure: true,
+  };
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", cookieOptions)
+    .clearCookie("refreshToken", cookieOptions)
+    .json(new APIResponse("OK", { message: "User logout success!" }, 200));
+});
+
+export { registerUser, loginUser, logoutUser };

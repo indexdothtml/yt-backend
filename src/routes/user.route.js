@@ -1,7 +1,12 @@
 import { Router } from "express";
 
-import { registerUser } from "../controllers/user.controller.js";
+import {
+  registerUser,
+  loginUser,
+  logoutUser,
+} from "../controllers/user.controller.js";
 import { upload } from "../middlewares/fileUpload.middleware.js";
+import { isAuthenticated } from "../middlewares/auth.middleware.js";
 
 // Using router we can logically sperate all the routes related to different endpoints, routes like user, product, authorization etc.
 const userRouter = Router();
@@ -21,5 +26,9 @@ userRouter.route("/register").post(
   ]),
   registerUser
 );
+
+userRouter.route("/login").post(loginUser);
+
+userRouter.route("/logout").get(isAuthenticated, logoutUser);
 
 export default userRouter;
