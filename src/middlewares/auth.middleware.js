@@ -32,7 +32,7 @@ const isAuthenticated = asyncHandler((req, res, next) => {
           "UNAUTHORIZED",
           "User is not authenticated or session expired.",
           401,
-          error?.message
+          error
         )
       );
   }

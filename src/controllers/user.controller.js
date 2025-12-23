@@ -1,10 +1,12 @@
+import jwt from "jsonwebtoken";
+
 import { asyncHandler } from "../utils/asyncHandler.js";
 import APIError from "../utils/apiErrorHandler.js";
 import APIResponse from "../utils/apiResponseHandler.js";
 import { User } from "../models/user.model.js";
 import { uploadFile } from "../utils/fileUploadHandler.js";
 import { deleteLocalFile } from "../utils/deleteLocalFileHandler.js";
-import { emailRegix, passwordRegix } from "../constants.js";
+import { emailRegix, passwordRegix, cookieOptions } from "../constants.js";
 
 // User registeration controller
 const registerUser = asyncHandler(async (req, res) => {
@@ -275,12 +277,6 @@ const loginUser = asyncHandler(async (req, res) => {
     }
   ).exec();
 
-  // Create cookie options
-  const cookieOptions = {
-    httpOnly: true,
-    secure: true,
-  };
-
   // Send cookies and response to client.
   return res
     .status(200)
@@ -315,12 +311,6 @@ const logoutUser = asyncHandler(async (req, res) => {
     }
   ).exec();
 
-  // Create cookie options
-  const cookieOptions = {
-    httpOnly: true,
-    secure: true,
-  };
-
   return res
     .status(200)
     .clearCookie("accessToken", cookieOptions)
@@ -328,4 +318,57 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new APIResponse("OK", { message: "User logout success!" }, 200));
 });
 
-export { registerUser, loginUser, logoutUser };
+// User access token refresher
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const refreshTokenFromUser =
+    req.cookies?.refreshToken || req.body?.refreshToken;
+
+  if (!refreshTokenFromUser) {
+    return res
+      .status(401)
+      .json(
+        new APIError("UNAUTHORIZED", "User don't have refresh token.", 401)
+      );
+  }
+
+  try {
+    const decoded = jwt.verify(
+      refreshTokenFromUser,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+
+    try {
+      const user = await User.findById(decoded?._id).exec();
+
+      if (user?.refreshToken !== refreshTokenFromUser) {
+        return res
+          .status(401)
+          .json(new APIError("UNAUTHORIZED", "Invalid token", 401));
+      }
+
+      const accessToken = user.generateAccessToken();
+
+      return res
+        .status(201)
+        .cookie("accessToken", accessToken, cookieOptions)
+        .json(new APIResponse("CREATED", { accessToken }, 201));
+    } catch (error) {
+      return res
+        .status(404)
+        .json(new APIError("NOT FOUND", "User did not found.", 404));
+    }
+  } catch (error) {
+    return res
+      .status(401)
+      .json(
+        new APIError(
+          "UNAUTHORIZED",
+          "Invalid token or token is expired.",
+          401,
+          error
+        )
+      );
+  }
+});
+
+export { registerUser, loginUser, logoutUser, refreshAccessToken };
