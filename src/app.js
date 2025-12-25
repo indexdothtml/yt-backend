@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
+import { errorHandler } from "./middlewares/error.middleware.js";
+
 const app = express();
 
 app.use(
@@ -32,5 +34,9 @@ import userRouter from "./routes/user.route.js";
 app.use("/api/v1/user", userRouter);
 // When there is a request on http://localhost:8000/api/v1/user then request will transfer to userRouter, from there further it will handle.
 // Like http://localhost:8000/api/v1/user/register register endpoint will get handle in userRouter.
+
+// Error handling global middleware.
+// Should be defined at the end after all routes.
+app.use(errorHandler);
 
 export default app;

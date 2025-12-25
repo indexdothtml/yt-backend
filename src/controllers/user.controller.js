@@ -320,9 +320,11 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 // User access token refresher
 const refreshAccessToken = asyncHandler(async (req, res) => {
+  // Get refresh token provided by user.
   const refreshTokenFromUser =
     req.cookies?.refreshToken || req.body?.refreshToken;
 
+  // Validate refresh token. Check if it is empty.
   if (!refreshTokenFromUser) {
     return res
       .status(401)
@@ -332,32 +334,39 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 
   try {
+    // Decode it.
     const decoded = jwt.verify(
       refreshTokenFromUser,
       process.env.REFRESH_TOKEN_SECRET
     );
 
     try {
+      // Get user document from db.
       const user = await User.findById(decoded?._id).exec();
 
+      // Validate if both tokens (user side and the one which was saved in db) are same.
       if (user?.refreshToken !== refreshTokenFromUser) {
         return res
           .status(401)
           .json(new APIError("UNAUTHORIZED", "Invalid token", 401));
       }
 
+      // Generate new access token.
       const accessToken = user.generateAccessToken();
 
+      // Return new access token.
       return res
         .status(201)
         .cookie("accessToken", accessToken, cookieOptions)
         .json(new APIResponse("CREATED", { accessToken }, 201));
     } catch (error) {
+      // Return if user does not found.
       return res
         .status(404)
         .json(new APIError("NOT FOUND", "User did not found.", 404));
     }
   } catch (error) {
+    // Return if token expired.
     return res
       .status(401)
       .json(
@@ -371,4 +380,101 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 });
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+// TODO:
+// Update full name
+// update avatar
+// update cover image
+// get user
+// forgot password
+// get watch history
+
+// Change Password.
+const updateUserPassword = asyncHandler(async (req, res) => {
+  // Get user id.
+  const userId = req.user?._id;
+
+  // Validate user id.
+  if (!userId) {
+    return res
+      .status(400)
+      .json(new APIError("INVALID INPUT", "User id is not correct.", 400));
+  }
+
+  // Get user document from db.
+  const user = await User.findById(userId).exec();
+
+  // Validate user document from db.
+  if (!user) {
+    return res
+      .status(404)
+      .json(
+        new APIError("NOT FOUND", "User with given id did not found.", 404)
+      );
+  }
+
+  // Get required inputs from user.
+  const { oldPassword, newPassword } = req.body;
+
+  // Validate input for empty values.
+  if (
+    [oldPassword, newPassword].some(
+      (field) => !field || field.toString().trim() === ""
+    )
+  ) {
+    return res
+      .status(400)
+      .json(
+        new APIError(
+          "INVALID INPUT",
+          "Old password or New password are not correctly given as input.",
+          400
+        )
+      );
+  }
+
+  // Check old password.
+  const isOldPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+
+  if (!isOldPasswordCorrect) {
+    return res
+      .status(400)
+      .json(new APIError("INCORRECT", "Password is incorrect.", 400));
+  }
+
+  // Test new password is following password rule.
+  if (!passwordRegix.test(newPassword)) {
+    return res
+      .status(400)
+      .json(
+        new APIError(
+          "INVALID",
+          "Given password does not match with password rules.",
+          400
+        )
+      );
+  }
+
+  // Test if old and new password are not same.
+  if (oldPassword === newPassword) {
+    return res
+      .status(400)
+      .json(
+        new APIError("INVALID", "Old password and New password both are same.")
+      );
+  }
+
+  // Update password and perform save operation.
+  user.password = newPassword;
+
+  await user.save(); // Before save pre middleware will execute which convert text password into hash and store the hash version of password.
+
+  return res.status(200).json(new APIResponse(200, {}, "Password is updated."));
+});
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  updateUserPassword,
+};

@@ -5,6 +5,7 @@ import {
   loginUser,
   logoutUser,
   refreshAccessToken,
+  updateUserPassword,
 } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/fileUpload.middleware.js";
 import { isAuthenticated } from "../middlewares/auth.middleware.js";
@@ -33,5 +34,7 @@ userRouter.route("/login").post(loginUser);
 userRouter.route("/logout").get(isAuthenticated, logoutUser);
 
 userRouter.route("/refreshAccessToken").post(refreshAccessToken);
+
+userRouter.route("/updatePassword").post(isAuthenticated, updateUserPassword);
 
 export default userRouter;
