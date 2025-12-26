@@ -381,7 +381,6 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 });
 
 // TODO:
-// Update full name
 // update avatar
 // update cover image
 // get user
@@ -471,10 +470,48 @@ const updateUserPassword = asyncHandler(async (req, res) => {
   return res.status(200).json(new APIResponse(200, {}, "Password is updated."));
 });
 
+// Update full name
+const updateUserFullName = asyncHandler(async (req, res) => {
+  // Get user id.
+  const userId = req.user?._id;
+
+  // Validate user id.
+  if (!userId) {
+    return res
+      .status(400)
+      .json(new APIError("INVALID INPUT", "User id did not found.", 400));
+  }
+
+  // Get fullname from user.
+  const { fullName } = req.body;
+
+  // Validate fullname.
+  if (!fullName || fullName.toString().trim() === "") {
+    return res
+      .status(400)
+      .json(new APIError("INVALID INPUT", "Fullname cannot be empty.", 400));
+  }
+
+  // Update new fullname value in db.
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    {
+      $set: { fullName },
+    },
+    {
+      new: true,
+      select: "-password -refreshToken",
+    }
+  ).exec();
+
+  return res.status(200).json(new APIResponse("OK", updatedUser, 200));
+});
+
 export {
   registerUser,
   loginUser,
   logoutUser,
   refreshAccessToken,
   updateUserPassword,
+  updateUserFullName,
 };
