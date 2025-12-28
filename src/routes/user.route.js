@@ -9,6 +9,7 @@ import {
   updateUserFullName,
   updateAvatarImage,
   updateCoverImage,
+  getUserDetails,
 } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/fileUpload.middleware.js";
 import { isAuthenticated } from "../middlewares/auth.middleware.js";
@@ -49,5 +50,7 @@ userRouter
 userRouter
   .route("/updateCoverImage")
   .post(isAuthenticated, upload.single("coverImage"), updateCoverImage);
+
+userRouter.route("/getUserDetails").get(isAuthenticated, getUserDetails);
 
 export default userRouter;

@@ -382,7 +382,6 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 });
 
 // TODO:
-// get user
 // forgot password
 // get watch history
 
@@ -634,6 +633,15 @@ const updateCoverImage = asyncHandler(async (req, res) => {
   }
 });
 
+// Get user
+const getUserDetails = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+
+  const user = await User.findById(userId, "-password -refreshToken").exec();
+
+  return res.status(200).json(new APIResponse("OK", user, 200));
+});
+
 export {
   registerUser,
   loginUser,
@@ -643,4 +651,5 @@ export {
   updateUserFullName,
   updateAvatarImage,
   updateCoverImage,
+  getUserDetails,
 };
