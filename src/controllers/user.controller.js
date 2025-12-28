@@ -382,7 +382,6 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 });
 
 // TODO:
-// update cover image
 // get user
 // forgot password
 // get watch history
@@ -507,7 +506,7 @@ const updateUserFullName = asyncHandler(async (req, res) => {
   return res.status(200).json(new APIResponse("OK", updatedUser, 200));
 });
 
-// Update avatar
+// Update avatar image
 const updateAvatarImage = asyncHandler(async (req, res) => {
   // get existing public id of the image.
   const userId = req.user?._id;
@@ -561,6 +560,80 @@ const updateAvatarImage = asyncHandler(async (req, res) => {
     .json(new APIResponse("OK", response.data?.secure_url, 200));
 });
 
+// Update cover image
+const updateCoverImage = asyncHandler(async (req, res) => {
+  // get user id.
+  const userId = req.user?._id;
+
+  // validate user id.
+  if (!userId) {
+    return res
+      .status(400)
+      .json(new APIError("INVALID", "User id not found.", 400));
+  }
+
+  // get the user document from db and validate it.
+  const user = await User.findById(userId).exec();
+
+  if (!user) {
+    return res
+      .status(404)
+      .json(new APIError("NOT FOUND", "User not found", 404));
+  }
+
+  // get the old cover image url if available.
+  const coverImage = user?.coverImage;
+
+  // get the new coverImage
+  const newCoverImageLocalPath = req.file?.path;
+
+  if (!coverImage || coverImage === "") {
+    const response = await uploadFile(newCoverImageLocalPath);
+
+    if (!response?.success) {
+      return res
+        .status(500)
+        .json(new APIError("UNEXPECTED ERROR", "File not uploaded.", 500));
+    }
+
+    await User.findByIdAndUpdate(
+      userId,
+      { $set: { coverImage: response.data?.secure_url } },
+      { new: true }
+    ).exec();
+
+    return res
+      .status(200)
+      .json(new APIResponse("OK", response.data?.secure_url, 200));
+  } else {
+    const publicId = getCloudinaryImageId(coverImage);
+
+    if (!publicId) {
+      return res
+        .status(500)
+        .json(
+          new APIError(
+            "SOMETHING WRONG",
+            "Public id of old avatar image not found.",
+            500
+          )
+        );
+    }
+
+    const response = await updateImage(newCoverImageLocalPath, publicId);
+
+    if (!response) {
+      return res
+        .status(500)
+        .json(new APIError("SOMETHING WRONG", "Image updation failed.", 500));
+    }
+
+    return res
+      .status(200)
+      .json(new APIResponse("OK", response.data?.secure_url, 200));
+  }
+});
+
 export {
   registerUser,
   loginUser,
@@ -569,4 +642,5 @@ export {
   updateUserPassword,
   updateUserFullName,
   updateAvatarImage,
+  updateCoverImage,
 };
