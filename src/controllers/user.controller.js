@@ -4,9 +4,10 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import APIError from "../utils/apiErrorHandler.js";
 import APIResponse from "../utils/apiResponseHandler.js";
 import { User } from "../models/user.model.js";
-import { uploadFile } from "../utils/fileUploadHandler.js";
+import { uploadFile, updateImage } from "../utils/fileUploadHandler.js";
 import { deleteLocalFile } from "../utils/deleteLocalFileHandler.js";
 import { emailRegix, passwordRegix, cookieOptions } from "../constants.js";
+import { getCloudinaryImageId } from "../utils/getCloudinaryImageId.js";
 
 // User registeration controller
 const registerUser = asyncHandler(async (req, res) => {
@@ -381,7 +382,6 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 });
 
 // TODO:
-// update avatar
 // update cover image
 // get user
 // forgot password
@@ -507,6 +507,60 @@ const updateUserFullName = asyncHandler(async (req, res) => {
   return res.status(200).json(new APIResponse("OK", updatedUser, 200));
 });
 
+// Update avatar
+const updateAvatarImage = asyncHandler(async (req, res) => {
+  // get existing public id of the image.
+  const userId = req.user?._id;
+
+  // get user document by id.
+  const user = await User.findById(userId).exec();
+
+  // validate user
+  if (!user) {
+    return res
+      .status(404)
+      .json(new APIError("NOT FOUND", "User did not found", 404));
+  }
+
+  // get new avatar image from user.
+  const avatarImageLocalPath = req.file?.path;
+
+  // validate user input
+  if (!avatarImageLocalPath) {
+    return res
+      .status(400)
+      .json(new APIError("INVALID INPUT", "Avatar image not found.", 400));
+  }
+
+  // get image id or public id of previous avatar image.
+  const imagePublicId = getCloudinaryImageId(user?.avatar);
+
+  if (!imagePublicId) {
+    return res
+      .status(500)
+      .json(
+        new APIError(
+          "SOMETHING WRONG",
+          "Public id of old avatar image not found.",
+          500
+        )
+      );
+  }
+
+  // update image in cloudinary.
+  const response = await updateImage(avatarImageLocalPath, imagePublicId);
+
+  if (!response) {
+    return res
+      .status(500)
+      .json(new APIError("SOMETHING WRONG", "Image updation failed.", 500));
+  }
+
+  return res
+    .status(200)
+    .json(new APIResponse("OK", response.data?.secure_url, 200));
+});
+
 export {
   registerUser,
   loginUser,
@@ -514,4 +568,5 @@ export {
   refreshAccessToken,
   updateUserPassword,
   updateUserFullName,
+  updateAvatarImage,
 };

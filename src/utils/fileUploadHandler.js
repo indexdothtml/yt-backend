@@ -38,4 +38,37 @@ async function uploadFile(localFilePath) {
   }
 }
 
-export { uploadFile };
+async function updateImage(newImageLocalFilePath, publicId) {
+  try {
+    const response = await cloudinary.uploader.upload(newImageLocalFilePath, {
+      public_id: publicId,
+      overwrite: true,
+    });
+    return {
+      success: true,
+      message: "",
+      data: response,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: "Failed to upload file to cloud service.",
+      data: null,
+      error: error.message,
+    };
+  } finally {
+    try {
+      fs.unlinkSync(newImageLocalFilePath);
+    } catch (error) {
+      return {
+        success: false,
+        message: "Failed to remove image file from local.",
+        data: null,
+        error: error.message,
+      };
+    }
+  }
+}
+
+export { uploadFile, updateImage };

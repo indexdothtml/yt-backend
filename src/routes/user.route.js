@@ -7,6 +7,7 @@ import {
   refreshAccessToken,
   updateUserPassword,
   updateUserFullName,
+  updateAvatarImage,
 } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/fileUpload.middleware.js";
 import { isAuthenticated } from "../middlewares/auth.middleware.js";
@@ -39,5 +40,9 @@ userRouter.route("/refreshAccessToken").post(refreshAccessToken);
 userRouter.route("/updatePassword").post(isAuthenticated, updateUserPassword);
 
 userRouter.route("/updateFullName").post(isAuthenticated, updateUserFullName);
+
+userRouter
+  .route("/updateAvatarImage")
+  .post(isAuthenticated, upload.single("avatarImage"), updateAvatarImage);
 
 export default userRouter;
